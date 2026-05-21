@@ -20,6 +20,7 @@ jobs:
           fetch-depth: '0'
 
       - name: Set active Xcode path
+        id: xcode
         run: |
           XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
           sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
@@ -43,6 +44,7 @@ jobs:
             bazel-macos26-
 
       - name: Build the App
+        id: build
         run: |
           set -x
 
@@ -83,6 +85,7 @@ jobs:
           zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
 
       - name: Upload IPA artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: WataGram-IPA-${{ env.BUILD_NUMBER }}
@@ -90,6 +93,7 @@ jobs:
           retention-days: 30
 
       - name: Upload dSYMs artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: WataGram-dSYMs-${{ env.BUILD_NUMBER }}
@@ -97,6 +101,7 @@ jobs:
           retention-days: 30
 
       - name: Create GitHub Release
+        if: success()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ env.BUILD_NUMBER }}
@@ -111,3 +116,28 @@ jobs:
           files: |
             /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
             /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
+
+      # --- Notify build status via issue comment so we can monitor remotely ---
+      - name: Notify build SUCCESS
+        if: success()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: 1
+          body: |
+            ✅ **Build SUCCESS** — Run `${{ github.run_id }}`
+            - Commit: `${{ github.sha }}`
+            - Version: ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
+            - IPA uploaded to Releases and Artifacts
+            - [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Notify build FAILURE
+        if: failure()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: 1
+          body: |
+            ❌ **Build FAILED** — Run `${{ github.run_id }}`
+            - Commit: `${{ github.sha }}`
+            - Failed step: Check [run logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - Runner: macos-26
+            - Xcode: 26.2
