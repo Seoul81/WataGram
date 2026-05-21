@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-26
+    runs-on: macos-15
     timeout-minutes: 120
 
     env:
@@ -18,6 +18,26 @@ jobs:
         with:
           submodules: 'recursive'
           fetch-depth: '0'
+
+      - name: Free disk space
+        run: |
+          echo "=== Disk before cleanup ==="
+          df -h /
+          # Remove unused Xcode versions to free space
+          for xc in /Applications/Xcode_*.app; do
+            if [[ "$xc" != *"16.2"* ]]; then
+              echo "Removing $xc"
+              sudo rm -rf "$xc" || true
+            fi
+          done
+          # Remove simulator runtimes we don't need
+          sudo rm -rf /Library/Developer/CoreSimulator/Volumes/* 2>/dev/null || true
+          sudo rm -rf /Users/runner/Library/Developer/CoreSimulator 2>/dev/null || true
+          # Remove other large tools
+          sudo rm -rf /usr/local/share/powershell 2>/dev/null || true
+          sudo rm -rf /usr/local/lib/android 2>/dev/null || true
+          echo "=== Disk after cleanup ==="
+          df -h /
 
       - name: Set active Xcode path
         id: xcode
@@ -38,10 +58,10 @@ jobs:
         with:
           path: |
             /private/var/tmp/_bazel_containerhost
-          key: bazel-macos26-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'WORKSPACE', 'versions.json') }}-${{ github.sha }}
+          key: bazel-macos15-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'WORKSPACE', 'versions.json') }}-${{ github.sha }}
           restore-keys: |
-            bazel-macos26-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'WORKSPACE', 'versions.json') }}-
-            bazel-macos26-
+            bazel-macos15-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'WORKSPACE', 'versions.json') }}-
+            bazel-macos15-
 
       - name: Build the App
         id: build
@@ -139,5 +159,5 @@ jobs:
             ❌ **Build FAILED** — Run `${{ github.run_id }}`
             - Commit: `${{ github.sha }}`
             - Failed step: Check [run logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            - Runner: macos-26
-            - Xcode: 26.2
+            - Runner: macos-15
+            - Xcode: 16.2
