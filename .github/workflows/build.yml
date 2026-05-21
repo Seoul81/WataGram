@@ -5,6 +5,11 @@ on:
     branches: [ master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  issues: write
+  actions: read
+
 jobs:
   build:
     runs-on: macos-15
@@ -38,6 +43,16 @@ jobs:
           sudo rm -rf /usr/local/lib/android 2>/dev/null || true
           echo "=== Disk after cleanup ==="
           df -h /
+
+      - name: Notify build STARTED
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: 1
+          body: |
+            🚀 **Build STARTED** — Run `${{ github.run_id }}`
+            - Commit: `${{ github.sha }}`
+            - Runner: macos-15 / Xcode 16.2
+            - [Watch live](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Set active Xcode path
         id: xcode
@@ -137,7 +152,6 @@ jobs:
             /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
             /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
 
-      # --- Notify build status via issue comment so we can monitor remotely ---
       - name: Notify build SUCCESS
         if: success()
         uses: peter-evans/create-or-update-comment@v4
@@ -159,5 +173,4 @@ jobs:
             ❌ **Build FAILED** — Run `${{ github.run_id }}`
             - Commit: `${{ github.sha }}`
             - Failed step: Check [run logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            - Runner: macos-15
-            - Xcode: 16.2
+            - Runner: macos-15 / Xcode 16.2
